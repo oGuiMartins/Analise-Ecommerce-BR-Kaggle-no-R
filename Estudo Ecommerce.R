@@ -193,15 +193,44 @@ tm_shape(shp = shp_sp) +
   tm_borders() +
   tm_layout(legend.outside = TRUE)
 
+# Desafio encontrar o Ticket médio de cada cidade
 
+db_mean_sp <- aggregate(preco_SP ~ cidades_SP,data=db_filtro_sp,FUN=mean)
+qtd_cidades_sp <- data.frame(table(db_filtro_sp$customer_city))
+qtd_cidades_sp<- rename(qtd_cidades_sp, cidades_SP = "Var1")
 
+db_ticket_sp <- left_join(db_mean_sp,db_cidade_lat_sp,by="cidades_SP")
+db_ticket_sp <- left_join(db_ticket_sp,db_cidade_lon_sp,by="cidades_SP")
+db_ticket_sp <- left_join(db_ticket_sp,qtd_cidades_sp,by="cidades_SP")
+db_ticket_sp <- rename(db_ticket_sp,Latitude="lat_sp",Longitude="lon_sp",NM_MUNICIP="cidades_SP")
 
+summary(db_ticket_sp$Freq)
 
+# Como parte das cidades tem pouquissimas compras porem com ticket alto vou utilizar a mediana como linha de corte para a analise
 
+median(db_ticket_sp$Freq)
 
+#Mediana é 9. Vou atribuir NA para tudo que for menor que 9
 
+db_ticket_sp <- db_ticket_sp %>% arrange(db_ticket_sp$Freq) #ordenar DF, crescente
+db_ticket_sp$Freq[1:288] <- NA
+db_ticket_sp$preco_SP[1:288] <- NA
+db_ticket_sp<-na.omit(db_ticket_sp)
 
+# Converter para maiusculo para fazer o left_join
 
+db_ticket_sp$NM_MUNICIP <-toupper(db_sp$NM_MUNICIP)
 
+shp_sp@data %>%
+  left_join(db_ticket_sp, by = "NM_MUNICIP") -> shp_sp@data
 
+#Plotando Ticket Médio por cidade
 
+tm_shape(shp = shp_sp) +
+  tm_fill(col = "preco_SP",
+          style = "quantile",
+          n = 5,
+          palette = "plasma",
+          legend.hist = TRUE) +
+  tm_borders() +
+  tm_layout(legend.outside = TRUE)
